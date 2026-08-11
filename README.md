@@ -6,8 +6,36 @@ fixed pool of engineers, and force-pushes the rewritten history to a target repo
 ## Requirements
 
 - `git`
-- [`git-filter-repo`](https://github.com/newren/git-filter-repo) — `pip install git-filter-repo` or `brew install git-filter-repo`
+- [`git-filter-repo`](https://github.com/newren/git-filter-repo)
 - SSH access (or a PAT) to both the source and target repos
+
+### Installing git-filter-repo
+
+```bash
+python3 -m venv env
+source env/bin/activate
+pip3 install git-filter-repo
+```
+
+Keep the venv active in the shell that runs `rewriter.sh` — the script looks for
+`git-filter-repo` on `PATH`.
+
+On distros that ship a PEP 668 "externally managed" Python (Arch, Debian, Ubuntu, Fedora),
+`pip3 install git-filter-repo` outside a venv fails with:
+
+```
+error: externally-managed-environment
+```
+
+The venv above is the fix. Alternatives, if you'd rather not activate one each time:
+
+```bash
+pacman -S git-filter-repo     # Arch — system package
+brew install git-filter-repo  # macOS
+pipx install git-filter-repo  # any distro, isolated but always on PATH
+```
+
+Avoid `--break-system-packages`; it does what it says.
 
 ## Configuration
 
