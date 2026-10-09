@@ -3,7 +3,7 @@ set -e
 
 # --- Configuration ---
 SOURCE_REPO="git@github.com:Mereb-Tech/realgaming-store-api.git"
-TARGET_REPO="git@github.com:johnmerga/test-api.git"
+TARGET_REPO="git@github.com:A-Manage-1a/AA-StoreService.git"
 WORK_DIR="/tmp/git-rewrite-workdir-$(date +%s)"
 
 # Rotating engineer pool
@@ -13,8 +13,8 @@ declare -a ENGINEERS=(
     "AA-Engineer-3|engineer3-a-1@teambase.click"
 )
 
-# Optional: Use PAT for HTTPS auth
-# export GITHUB_PAT="ghp_xxxxxxxxxxxxxxxxxxxx"
+# Required for --push: PAT of the target account (push is HTTPS-only, never SSH)
+# GITHUB_PAT=ghp_xxxxxxxxxxxxxxxxxxxx ./rewriter.sh --push
 
 # Push to TARGET_REPO? Off by default — rewrite locally and keep the result.
 # Enable with:  PUSH=1 ./rewriter.sh    or    ./rewriter.sh --push
@@ -40,6 +40,14 @@ case "$PUSH" in
     1|true|yes|on) PUSH=1 ;;
     *)             PUSH=0 ;;
 esac
+
+# Source is cloned with your SSH key; the push uses ONLY the PAT (target account).
+# Fail before cloning rather than silently falling back to the SSH identity.
+if [ "$PUSH" = "1" ] && [ -z "$GITHUB_PAT" ]; then
+    echo "ERROR: --push needs GITHUB_PAT (token of the target account)."
+    echo "  GITHUB_PAT=<token> $0 --push"
+    exit 1
+fi
 
 # --- Setup ---
 rm -rf "$WORK_DIR"
@@ -126,22 +134,26 @@ if [ "$PUSH" != "1" ]; then
 fi
 
 # --- Configure Target Remote ---
-if [ -n "$GITHUB_PAT" ]; then
-    TARGET_REPO="https://${GITHUB_PAT}@github.com/johnmerga/test-api.git"
-fi
+# Always push over HTTPS with the PAT (derived from TARGET_REPO, SSH or HTTPS form)
+repo_path="${TARGET_REPO#git@github.com:}"
+repo_path="${repo_path#https://github.com/}"
+TARGET_REPO="https://x-access-token:${GITHUB_PAT}@github.com/${repo_path}"
 
 git remote add target "$TARGET_REPO" 2>/dev/null || git remote set-url target "$TARGET_REPO"
+
+# Ignore stored credential helpers so only the PAT is used for the push
+PUSH_GIT=(git -c credential.helper= -c core.askPass=)
 
 # --- Push ---
 echo ""
 echo "Pushing to target repo..."
-if ! git push target --all --force; then
+if ! "${PUSH_GIT[@]}" push target --all --force; then
     echo ""
-    echo "ERROR: Push failed. Check repository rulesets or authentication."
+    echo "ERROR: Push failed. Check the PAT has Contents: write on ${repo_path}, or repository rulesets."
     exit 1
 fi
 
-git push target --tags --force 2>/dev/null || echo "No tags to push"
+"${PUSH_GIT[@]}" push target --tags --force 2>/dev/null || echo "No tags to push"
 
 # --- Cleanup ---
 cd ..
